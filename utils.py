@@ -121,3 +121,13 @@ def read_allc(fname, pindex=True, compression='gzip', remove_chr=True, **kwargs)
         if df.iloc[0,0].startswith('chr'):
             df['chr'] = df['chr'].apply(lambda x: x[3:]) 
     return df
+
+def get_chrom_lengths(genome_size_file):
+    """
+    """
+    chrom_sizes = pd.read_csv(genome_size_file, sep="\t", header=None) 
+    chrom_sizes = chrom_sizes[~chrom_sizes[0].str.contains('_')]
+    # remove leading 'chr'
+    chrom_sizes[0] = chrom_sizes[0].apply(lambda x: x[len('chr'):])
+    chrom_sizes = chrom_sizes.sort_values(0).set_index(0).squeeze()
+    return chrom_sizes

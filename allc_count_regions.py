@@ -2,10 +2,9 @@
 """
 """
 DESCRIPTION = '''
-Read in allc tables (with tabix open) and generate summarized mc levels for given regions 
-
-Inputs: allctables, a bedfile (a list of regions), a list of contexts
-Outputs: one file for each allc table for a list of context
+Read in allc tables (with tabix open) and generate summarized mc levels for given regions. 
+Inputs: allctables, a bedfile (a list of regions), a list of contexts.
+Outputs: one file for each allc table for a list of context.
 '''
 from __init__scr import *
 
