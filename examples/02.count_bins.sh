@@ -1,0 +1,1 @@
+/cndd2/fangming/projects/m3c_human_dev/analysis/02.count_bins.sh

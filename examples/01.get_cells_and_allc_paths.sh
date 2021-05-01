@@ -1,0 +1,1 @@
+/cndd2/fangming/projects/m3c_human_dev/analysis/01.get_cells_and_allc_paths.sh
