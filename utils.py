@@ -131,3 +131,82 @@ def get_chrom_lengths(genome_size_file):
     chrom_sizes[0] = chrom_sizes[0].apply(lambda x: x[len('chr'):])
     chrom_sizes = chrom_sizes.sort_values(0).set_index(0).squeeze()
     return chrom_sizes
+
+def anova_analysis(df, groups, per_group_tss=False):
+    """ANOVA analysis
+    df is a dataframe (n_obs, n_features)
+    group_assigments is an array (n_obs,) that matches df
+    """
+    from scipy import stats
+    from statsmodels.stats.multitest import multipletests
+
+    N = len(df) 
+    K = len(np.unique(groups))
+
+    mean = df.mean()
+    mean.name = 'mu'
+
+    tss = np.power(df-mean, 2).sum()
+    tss.name = 'tss'
+
+    tmp = df.copy()
+    tmp['_group'] = groups
+
+    # tss_in
+    tss_in = 0
+    for grp, dfsub in tmp.groupby('_group'):
+        diff = dfsub.drop('_group', axis=1) - dfsub.drop('_group', axis=1).mean()
+        tss_in += np.power(diff, 2).sum()
+    tss_in.name = 'tss_in'
+
+    # res
+    tss_df = tss.to_frame().join(tss_in)
+    tss_df['tss_out'] = tss_df['tss'] - tss_df['tss_in']
+    tss_df['eta2'] = tss_df['tss_out']/tss_df['tss']
+    tss_df['s2'] = tss_df['tss']/len(df)
+    tss_df = tss_df.join(mean)
+
+    # test 
+    tss_df['f'] = (tss_df['tss_out']/(K-1))/(tss_df['tss_in']/(N-K))
+    tss_df['p_f'] = stats.f.sf(tss_df['f'], N, K)
+    tss_df['p_f'] = tss_df['p_f'].fillna(1)
+    rej, fdr, _, _ = multipletests(tss_df['p_f'].values, method='fdr_bh')
+    tss_df['fdr_f'] = fdr 
+    tss_df['-log10fdr_f'] = -np.log10(fdr)
+
+    # show individual contributions
+    if per_group_tss:
+        group_mean = tmp.groupby('_group').mean()
+        group_size = tmp.groupby('_group').size()
+        group_tss = np.power((group_mean - mean), 2).multiply(group_size, axis=0)
+        group_eta2_frac = group_tss/tss_df['tss_out']
+
+        group_eta2_frac.index = ['eta2_frac_'+group for group in group_tss.index]
+        tss_df = tss_df.join(group_eta2_frac.T)
+
+    return tss_df 
+
+def get_order_from_hierarchy(mat, **kwargs):
+    """(n_obs, n_features)
+    """
+    import scipy.cluster.hierarchy as sch
+
+    Z = sch.linkage(mat, **kwargs)
+    d = sch.dendrogram(Z, no_plot=True)
+    order = d['leaves']
+
+    return order
+
+def get_fdr(p, method='fdr_bh', **kwargs):
+    """
+    """
+    from statsmodels.stats.multitest import multipletests
+
+    _, fdr, _, _ = multipletests(p, method=method, **kwargs)
+    return fdr
+
+def savefig(fig, path, dpi=300):
+    """
+    """
+    fig.savefig(path, bbox_inches='tight', dpi=300)
+    return 
