@@ -4,6 +4,7 @@
 import numpy as np
 import datashader as ds
 import colorcet
+import json
 
 from __init__plots import *
 
@@ -59,17 +60,17 @@ class PlotScale:
         """
         return npixel*self.pxl_scale
 
-class CategoricalColors():
+class CategoricalColors:
     """
     Arguments: labels, [colors]
     """
-    def __init__(self, labels, colors=[],):
+    def __init__(self, labels, colors=[], basis_cmap=colorcet.cm.rainbow):
         """
         """
         self.labels = labels
         self.indices = np.arange(len(labels))
         if not colors:
-            self.colors = colorcet.cm.rainbow(np.linspace(0, 1, len(self.indices)))
+            self.colors = basis_cmap(np.linspace(0, 1, len(self.indices)))
             # colors = colorcet.cm.glasbey(np.arange(len(indices)))
             # colors = sns.color_palette('husl', len(indices))
         else:
@@ -113,6 +114,29 @@ class CategoricalColors():
         cbar.ax.set_yticklabels(self.labels, fontsize=fontsize)
         cbar.ax.tick_params(axis=u'both', which=u'both', length=0)
         return 
+    
+    def to_dict(self, to_hex=True, output=""):
+        """
+        """
+        if to_hex:
+            self.palette = {label: mpl.colors.to_hex(color) 
+                        for label, color 
+                        in zip(self.labels, self.colors)
+                    }
+        else:
+            self.palette = {label: color 
+                        for label, color 
+                        in zip(self.labels, self.colors)
+                    }
+
+        if output:
+            with open(output, 'w') as fh:
+                json.dump(self.palette, fh)
+                print("saved to file: {}".format(output))
+
+        return self.palette
+    
+        
 
 def agg_data(
     data, 
@@ -123,6 +147,18 @@ def agg_data(
     """
     """
     aggdata = ds.Canvas(plot_width=npxlx, plot_height=npxly).points(data, x, y, agg=agg)
+    return aggdata
+
+def agg_data_count(
+    data, 
+    x, y, 
+    npxlx, npxly,
+    ):
+    agg = ds.count()
+    aggdata = agg_data(data, x, y, npxlx, npxly, agg)
+    agg = ds.any()
+    aggdata_any = agg_data(data, x, y, npxlx, npxly, agg)
+    aggdata = aggdata/aggdata_any
     return aggdata
 
 def agg_data_ps(data, x, y, agg, scale_paras):
@@ -206,7 +242,7 @@ def imshow_routine(
     ax.axis('off')
     return ax 
 
-def massive_scatter_plot_routine(
+def massive_scatterplot(
     ax, 
     data, 
     x, y,  
@@ -223,6 +259,23 @@ def massive_scatter_plot_routine(
                    vmin=vmin, vmax=vmax,
                   )
     return ax 
+
+def massive_scatterplot_withticks(
+    ax, data, x, y, npxlx, npxly, 
+    aspect='auto',
+    color_logscale=False,
+    ):
+    xmin, xmax = data[x].min(), data[x].max()
+    ymin, ymax = data[y].min(), data[y].max()
+    aggdata = agg_data_count(data, x, y, npxlx, npxly)
+    if color_logscale:
+        aggdata = np.log10(aggdata)
+    ax.imshow(
+        aggdata, origin='lower', aspect=aspect, 
+        extent=[xmin, xmax, ymin, ymax])
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    return 
 
 def add_arrows(
     ax, label, 
@@ -278,7 +331,7 @@ def plot_gene_insitu_routine(
     rangex = data[x].max() - data[x].min()
     rangey = data[y].max() - data[y].min()
     ps = PlotScale(rangex, rangey, **scale_paras)
-    massive_scatter_plot_routine(
+    massive_scatterplot(
         ax, data, x, y, ps.npxlx, ps.npxly, 
         agg=agg, 
         cmap=cmap,
@@ -307,7 +360,7 @@ def plot_gene_umap_routine(
     rangex = data[x].max() - data[x].min()
     rangey = data[y].max() - data[y].min()
     ps = PlotScale(rangex, rangey, **scale_paras)
-    massive_scatter_plot_routine(ax, data, x, y, ps.npxlx, ps.npxly, 
+    massive_scatterplot(ax, data, x, y, ps.npxlx, ps.npxly, 
                          agg=agg, 
                          cmap=cmap,
                          vmaxp=vmaxp,
@@ -377,3 +430,24 @@ def plot_cluster_umap_routine(
 
     return ax
 ### END OF VIZGEN MERFISH SECTION
+
+def gen_cdf(array, ax, x_range=[], n_points=1000, show=True, flip=False, **kwargs):
+    """ returns x and y values
+    """
+    x = np.sort(array)
+    y = np.arange(len(array))/len(array)
+    if flip:
+        # x = x[::-1]
+        y = 1 - y
+
+    if not x_range:
+        if show:
+            ax.plot(x, y, **kwargs)
+        return x, y 
+    else:
+        start, end = x_range
+        xbins = np.linspace(start, end, n_points)
+        ybins = np.interp(xbins, x, y)
+        if show:
+            ax.plot(xbins, ybins, **kwargs)
+        return xbins, ybins 
