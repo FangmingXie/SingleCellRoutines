@@ -370,9 +370,9 @@ def run_umap_lite(X, cell_list, n_neighbors=15, min_dist=0.1, n_dim=2,
                   Input shape: (# observations, # features) = {}"
                         .format(n_neighbors, min_dist, n_dim, X.shape))
     
-    umap = UMAP(n_components=n_dim, random_state=random_state, 
+    umap_res = UMAP(n_components=n_dim, random_state=random_state, 
                 n_neighbors=n_neighbors, min_dist=min_dist, **kwargs)
-    ts = umap.fit_transform(X)
+    ts = umap_res.fit_transform(X)
 
     columns = ['umap_{}'.format(i+1) for i in np.arange(n_dim)]
     df_umap = pd.DataFrame(ts, columns=columns)
