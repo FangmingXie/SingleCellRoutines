@@ -16,6 +16,9 @@ class PlotScale:
     """
     def __init__(self, rangex, rangey, npxlx=0, npxly=0, pxl_scale=0):
         """
+        rangex(y) - range of the x(y) axis (in micron)
+        pxl_scale - number of microns per pixel
+        npxlx(y) - number of pixels on the x(y)axis
         """
         # 1 of the three optional args need to be set
         assert (np.array([npxlx, npxly, pxl_scale])==0).sum() == 2 
@@ -209,6 +212,24 @@ def set_vmin_vmax(
     vmin, vmax = 0, np.nanpercentile(numbers, vmaxp)
     return vmin, vmax 
     
+def add_colorbar_unified_colorbar(
+    fig, cax, 
+    vmin=0, vmax=0,
+    cmap=sns.cubehelix_palette(as_cmap=True),
+    **kwargs,
+    ):
+    """User specified vmin and vmax
+    """
+      # colorbar
+    norm = plt.Normalize(vmin, vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm,)
+    fig.colorbar(sm, cax=cax, 
+                 ticks=[vmin, vmax],
+                 label='Normalized expression', 
+                 **kwargs,
+                )
+    return 
+
 def add_colorbar(
     fig, cax, 
     vmaxp=99, 
@@ -249,15 +270,23 @@ def massive_scatterplot(
     npxlx, npxly, 
     agg=ds.count(),
     cmap=sns.cubehelix_palette(as_cmap=True),
+    vmin=0,
+    vmax=0,
     vmaxp=99,
     ):
     """
     """
     aggdata = agg_data(data, x, y, npxlx, npxly, agg)
-    vmin, vmax = set_vmin_vmax(aggdata.values, vmaxp)
-    imshow_routine(ax, aggdata, cmap=cmap, 
-                   vmin=vmin, vmax=vmax,
-                  )
+    if vmin==0 and vmax == 0:
+        vmin, vmax = set_vmin_vmax(aggdata.values, vmaxp)
+        imshow_routine(ax, aggdata, cmap=cmap, 
+                    vmin=vmin, vmax=vmax,
+                    )
+    else:
+        imshow_routine(ax, aggdata, cmap=cmap, 
+                    vmin=vmin, vmax=vmax,
+                    )
+
     return ax 
 
 def massive_scatterplot_withticks(
@@ -322,6 +351,7 @@ def plot_gene_insitu_routine(
     ax, data, x, y, hue, scale_paras, cmap, title, 
     arrows=True, scalebar=True, 
     vmaxp=99,
+    vmin=0, vmax=0,
     ):
     """
     """
@@ -336,6 +366,8 @@ def plot_gene_insitu_routine(
         agg=agg, 
         cmap=cmap,
         vmaxp=vmaxp,
+        vmin=vmin,
+        vmax=vmax,
     )
     ax.set_title(title)
     # arrows

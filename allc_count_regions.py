@@ -74,9 +74,17 @@ def mc_region_level_worker(
             row_out[0] = 'chr'+row_out[0]
 
         if allc_chr_prefix: 
-            records = list(allc.query('chr'+str(row['chr']), row['start'], row['end']))
+            try:
+                toquery = 'chr'+str(row['chr']), row['start'], row['end']
+                records = list(allc.query(*toquery))
+            except:
+                raise ValueError("tabix query failed! {}".format(toquery))
         else:
-            records = list(allc.query(row['chr'], row['start'], row['end']))
+            try:
+                toquery = row['chr'], row['start'], row['end']
+                records = list(allc.query(*toquery))
+            except:
+                raise ValueError("tabix query failed for query {}".format(toquery))
 
         for context in contexts:
             mc, c = utils.tabix_summary(records, context=context, cap=cap) # remove sites with total_c > 2
