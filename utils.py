@@ -418,3 +418,67 @@ def dedup_array_elements(x, empty_string=''):
         else:
             newx[i] = x[i]
     return newx
+
+def logcpm(counts):
+    """
+    Args:
+        - gene-cell matrix (pandas DataFrame)
+    """
+    cov = counts.sum(axis=0)
+    logcpm = np.log10(counts.divide(cov, axis=1)*1000000 + 1)
+    return logcpm
+
+def logtpm(counts, gene_lengths):
+    """
+    Args:
+        - gene-cell matrix (pandas DataFrame)
+        - gene_lengths: a series indexed by gene_id
+    """
+    tpm = counts.divide(gene_lengths.loc[counts.index], axis=0)
+    cov = tpm.sum(axis=0)
+    logtpm = np.log10((tpm.divide(cov, axis=1))*1000000 + 1)
+    return logtpm
+
+def sparse_logcpm(gc_matrix, mode='logcpm', lib_size=[]):
+    """
+    """
+    lib_size = np.array(lib_size)
+    if np.size(lib_size) == 0:
+        lib_size = gc_matrix.data.sum(axis=0)
+
+    lib_size_inv = sparse.diags(np.ravel(1.0/(1e-7+lib_size)))
+    cpm = (gc_matrix.data).dot(lib_size_inv*1e6).tocoo()
+
+    if mode == 'logcpm':
+        cpm.data = np.log10(cpm.data + 1)
+    elif mode == 'cpm':
+        pass
+
+    gc_cpm = GC_matrix(
+        gc_matrix.gene, 
+        gc_matrix.cell, 
+        cpm,
+    )
+    
+    return gc_cpm
+
+def sparse_logtpm(gc_matrix, gene_lengths):
+    """
+    gene_lengths: array like 
+    
+    """
+    gene_lengths = np.array(gene_lengths)
+    gene_length_inv = sparse.diags(np.ravel(1.0/gene_lengths))
+    tmp = (gene_length_inv).dot(gc_matrix.data).tocoo()
+    lib_size_inv = sparse.diags(np.ravel(1.0/tmp.sum(axis=0)))
+    
+    logtpm = tmp.dot(lib_size_inv*1e6).tocoo()
+    logtpm.data = np.log10(logtpm.data + 1)
+
+    gc_logtpm = GC_matrix(
+        gc_matrix.gene, 
+        gc_matrix.cell, 
+        logtpm,
+    )
+    
+    return gc_logtpm
